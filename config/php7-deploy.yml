@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: php7
+spec:
+  selector:
+    app: php7-server
+  ports:
+  - name: php7
+    port: 9000
+    targetPort: 9000
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: php7-server
+  labels:
+    name: php7-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+        app: php7-server
+  template:
+    metadata:
+      labels:
+        app: php7-server
+    spec:
+      containers:
+      - name: php7
+        image: harbor.wow-trend.us/wow/php-fpm:v7.3
+        volumeMounts:
+        - mountPath: /var/www/html/
+          name: webdata
+        ports:
+        - containerPort: 9000
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "cd /var/www/html/service.wow-trend.com && nohup php artisan queue:work &"]
+      volumes:
+      - name: webdata
+        nfs:
+          path: /data/k8s-nfs/data/wwwroot
+          server: 192.168.1.6
