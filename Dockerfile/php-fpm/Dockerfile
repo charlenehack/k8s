@@ -9,7 +9,7 @@ RUN docker-php-ext-install zip bcmath bz2 ctype gettext json mbstring mysqli opc
 	export CFLAGS="-I/usr/src/php" && docker-php-ext-install xmlreader xmlwriter xml xmlrpc xsl && \
 	pecl install imagick redis memcached mongodb swoole rdkafka && \
 	docker-php-ext-enable imagick redis memcached mongodb swoole rdkafka && \
-	docker-php-ext-configure gd --with-png-dir --with-jpeg-dir --with-freetype-dir
+	docker-php-ext-configure gd --with-png-dir --with-jpeg-dir --with-freetype-dir && docker-php-ext-install gd
 
 # 安装composer
 RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');" && \
