@@ -30,6 +30,7 @@ spec:
       containers:
       - name: php7
         image: harbor.wow-trend.us/wow/php-fpm:v7.3
+        imagePullPolicy: Always
         volumeMounts:
         - mountPath: /var/www/html/
           name: webdata

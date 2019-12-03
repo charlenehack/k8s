@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mindoc
+  labels: 
+    app: mindoc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mindoc
+  template:
+    metadata:
+      labels:
+        app: mindoc
+    spec:
+      containers:
+      - name: redis-server
+        image: harbor.wow-trend.us/wow/mindoc:lastest
+        env:
+        - name: "MYSQL_PORT_3306_TCP_ADDR"
+          value: "mysql"
+        - name: "MYSQL_PORT_3306_TCP_PORT"
+          value: "3306"
+        - name: "MYSQL_INSTANCE_NAME"
+          value: "mindoc"
+        - name: "MYSQL_USERNAME"
+          value: "root"
+        - name: "MYSQL_PASSWORD"
+          value: "123456"
+        ports:
+        - containerPort: 8181
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mindoc
+spec:
+  selector:
+    app: mindoc
+  type: NodePort
+  ports:
+  - name: mindoc
+    port: 8181
+    protocol: TCP
+    targetPort: 8181
+    nodePort: 8181
