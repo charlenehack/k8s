@@ -14,8 +14,10 @@ spec:
       labels:
         app: mindoc
     spec:
+      nodeSelector:
+        kubernetes.io/hostname: node04
       containers:
-      - name: redis-server
+      - name: mindoc
         image: harbor.wow-trend.us/wow/mindoc:lastest
         env:
         - name: "MYSQL_PORT_3306_TCP_ADDR"
