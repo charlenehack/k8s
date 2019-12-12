@@ -1,12 +1,12 @@
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: pv-100-1
+  name: mysql-pv-100
   labels:
     name: pv-100
 spec:
   nfs:
-    path: /data/k8s-nfs/data/pv-100-1
+    path: /data/k8s-nfs/data/mysql-pv-100
     server: 192.168.1.6
   accessModes: ["ReadWriteMany", "ReadWriteOnce"]
   capacity:
@@ -16,13 +16,14 @@ spec:
 apiVersion: v1
 kind: PersistentVolume
 metadata:
-  name: pv-100-2
+  name: es-pv-100
   labels:
     name: pv-100
 spec:
   nfs:
-    path: /data/k8s-nfs/data/pv-100-2
+    path: /data/k8s-nfs/data/es-pv-100
     server: 192.168.1.6
   accessModes: ["ReadWriteMany", "ReadWriteOnce"]
   capacity:
     storage: 100Gi
+  storageClassName: nfs-es

@@ -17,13 +17,13 @@ spec:
       containers:
       - name: elasticsearch6
         image: harbor.wow-trend.us/wow/elasticsearch:v6.3.2
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         command: ["bash", "-c", "ulimit -l unlimited && sysctl -w vm.max_map_count=262144 && exec su elasticsearch docker-entrypoint.sh"]
         env:
         - name: "discovery.zen.minimum_master_nodes"
           value: "1"
         - name: "ES_JAVA_OPTS"
-          value: "-Xms1024m -Xmx1024m"
+          value: "-Xms2048m -Xmx2048m"
         - name: "discovery.type"
           value: "single-node"
         ports:
@@ -38,9 +38,19 @@ spec:
           mountPath: /usr/share/elasticsearch/data
       volumes:
       - name: es-data
-        nfs:
-          path: /data/k8s-nfs/data/elasticsearch
-          server: 192.168.1.6
+        persistentVolumeClaim:
+           claimName: es-pvc
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: es-pvc
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: nfs-es
 ---
 apiVersion: v1
 kind: Service

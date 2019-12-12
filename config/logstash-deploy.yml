@@ -1,33 +1,37 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: jenkins
+  name: logstash6
   labels: 
-    app: jenkins
+    app: logstash6
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: jenkins
+      app: logstash6
   template:
     metadata:
       labels:
-        app: jenkins
+        app: logstash6
     spec:
       containers:
-      - name: jenkins
-        image: harbor.wow-trend.us/wow/jenkins:v2.150
+      - name: logstash6
+        image: harbor.wow-trend.us/wow/logstash:v6.3.2
         ports:
-        - containerPort: 8080
+        - containerPort: 9600
         securityContext:
           privileged: true
         volumeMounts:
-        - name: jenkins-data
-          mountPath: /var/jenkins_home
+        - name: logstash-config
+          mountPath: /usr/share/logstash/pipeline
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "mkdir /usr/share/logstash/cache"]
       volumes:
-      - name: jenkins-data
+      - name: logstash-config
         nfs:
-          path: /data/k8s-nfs/data/jenkins
+          path: /data/k8s-nfs/config/logstash
           server: 192.168.1.6
       affinity:
         nodeAffinity:
@@ -39,16 +43,3 @@ spec:
                 operator: In
                 values:
                 - node04
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: jenkins
-spec:
-  selector:
-    app: jenkins
-  ports:
-  - name: jenkins
-    port: 8080
-    protocol: TCP
-    targetPort: 8080

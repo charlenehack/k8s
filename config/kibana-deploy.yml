@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  labels: 
+    app: kibana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: harbor.wow-trend.us/wow/kibana:v6.3.2
+        env:
+        - name: "ELASTICSEARCH_URL"
+          value: "http://192.168.1.11:9200"
+        ports:
+        - containerPort: 5601
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+spec:
+  selector:
+    app: kibana
+  type: NodePort
+  ports:
+  - name: kibana
+    port: 5601
+    protocol: TCP
+    targetPort: 5601
+    nodePort: 5601

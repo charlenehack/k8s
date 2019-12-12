@@ -14,8 +14,6 @@ spec:
       labels:
         app: mindoc
     spec:
-      nodeSelector:
-        kubernetes.io/hostname: node04
       containers:
       - name: mindoc
         image: harbor.wow-trend.us/wow/mindoc:lastest
@@ -32,6 +30,17 @@ spec:
           value: "123456"
         ports:
         - containerPort: 8181
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 1
+            preference:
+              matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                - node04
+
 ---
 apiVersion: v1
 kind: Service
@@ -40,10 +49,8 @@ metadata:
 spec:
   selector:
     app: mindoc
-  type: NodePort
   ports:
   - name: mindoc
     port: 8181
     protocol: TCP
     targetPort: 8181
-    nodePort: 8181
