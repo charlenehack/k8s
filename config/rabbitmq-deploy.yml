@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  labels: 
+    app: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+    spec:
+      containers:
+      - name: rabbitmq
+        image: harbor.wow-trend.us/wow/rabbitmq:v3.8.2
+        env:
+        - name: "RABBITMQ_DEFAULT_USER"
+          value: "rabbit_test"
+        - name: "RABBITMQ_DEFAULT_PASS"
+          value: "123456"
+        ports:       
+        - name: trans
+          containerPort: 5672
+        - name: web
+          containerPort: 15672
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+spec:
+  selector:
+    app: rabbitmq
+  type: NodePort
+  ports:
+  - name: trans
+    port: 5672
+    protocol: TCP
+    targetPort: 5672
+  - name: web
+    port: 15672
+    protocol: TCP
+    targetPort: 15672
+    nodePort: 15672
