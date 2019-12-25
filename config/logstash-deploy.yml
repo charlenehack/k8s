@@ -14,6 +14,10 @@ spec:
       labels:
         app: logstash6
     spec:
+      hostAliases:
+      - ip: "192.168.1.11"
+        hostnames:
+        -  "elasticsearch"
       containers:
       - name: logstash6
         image: harbor.wow-trend.us/wow/logstash:v6.3.2
@@ -24,14 +28,16 @@ spec:
         volumeMounts:
         - name: logstash-config
           mountPath: /usr/share/logstash/pipeline
-        lifecycle:
-          postStart:
-            exec:
-              command: ["/bin/sh", "-c", "mkdir /usr/share/logstash/cache"]
+        - name: cache
+          mountPath: /usr/share/logstash/cache
       volumes:
       - name: logstash-config
         nfs:
           path: /data/k8s-nfs/config/logstash
+          server: 192.168.1.6
+      - name: cache
+        nfs:
+          path: /data/k8s-nfs/data/logstash/cache
           server: 192.168.1.6
       affinity:
         nodeAffinity:
