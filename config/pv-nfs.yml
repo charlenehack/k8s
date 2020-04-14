@@ -27,3 +27,18 @@ spec:
   capacity:
     storage: 100Gi
   storageClassName: nfs-es
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: mongo-pv-200
+    labels:
+      name: pv-200
+spec:
+  nfs:
+    path: /data/k8s-nfs/data/mongo-pv-200
+    server: 192.168.1.6
+  accessModes: ["ReadWriteMany", "ReadWriteOnce"]
+  capacity:
+    storage: 200Gi
+  storageClassName: nfs-mongo

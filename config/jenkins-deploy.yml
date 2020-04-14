@@ -21,9 +21,14 @@ spec:
         - containerPort: 8080
         securityContext:
           privileged: true
+          runAsUser: 0
         volumeMounts:
         - name: jenkins-data
           mountPath: /var/jenkins_home
+        lifecycle:
+          postStart:
+            exec:
+              command: ["/bin/sh", "-c", "/ssh-keygen.sh && /ssh-copy-id.sh"]
       volumes:
       - name: jenkins-data
         nfs:
@@ -38,7 +43,7 @@ spec:
               - key: kubernetes.io/hostname
                 operator: In
                 values:
-                - node04
+                - node03
 ---
 apiVersion: v1
 kind: Service
