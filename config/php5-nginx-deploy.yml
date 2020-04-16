@@ -67,9 +67,15 @@ metadata:
   name: php5-nginx
 spec:
   rules:
-  - http:
+  - host: crm.wow-trend.test
+    http:
       paths:
-      - path:
-        backend:
+      - backend:
+          serviceName: php5-nginx
+          servicePort: 80
+  - host: admin.wow-trend.test 
+    http:
+      paths:
+      - backend:
           serviceName: php5-nginx
           servicePort: 80
