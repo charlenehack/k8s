@@ -54,3 +54,17 @@ spec:
     port: 8181
     protocol: TCP
     targetPort: 8181
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: mindoc
+spec:
+  rules:
+  - host: doc.wow-trend.us
+    http:
+      paths:
+      - path:
+        backend:
+          serviceName: mindoc
+          servicePort: 8181
