@@ -1,0 +1,104 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prome-grafana
+spec:
+  selector:
+    app: prome-grafana
+  ports:
+  - name: prome-grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prome-grafana
+  labels:
+    app: prome-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prome-grafana
+  template:
+    metadata:
+      labels:
+        app: prome-grafana
+    spec:
+      containers:
+      - name: prometheus
+        image: harbor.wow-trend.us/wow/prometheus:v2.17
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: prometheus-yml
+          mountPath: /etc/prometheus/
+          readOnly: true  
+        - name: prome-data
+          mountPath: /prometheus
+        ports:
+        - containerPort: 9090
+      - name: grafana
+        image: harbor.wow-trend.us/wow/grafana:v6.7.2
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /usr/share/grafana/conf
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+      volumes:
+      - name: prometheus-yml
+        configMap:
+          name: prome-config
+      - name: prome-data
+        nfs:
+          path: /data/k8s-nfs/data/prometheus
+          server: 192.168.1.6
+      - name: grafana-config
+        nfs:
+          path: /data/k8s-nfs/config/grafana
+          server: 192.168.1.6
+      - name: grafana-data
+        nfs:
+          path: /data/k8s-nfs/data/grafana
+          server: 192.168.1.6
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: prome-grafana
+spec:
+  rules:
+  - host: grafana.wow-trend.us
+    http:
+      paths:
+      - backend:
+          serviceName: prome-grafana
+          servicePort: 3000
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prome-config
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval:     15s
+      evaluation_interval: 15s
+
+    alerting:
+      alertmanagers:
+      - static_configs:
+        - targets:
+
+    rule_files:
+
+    scrape_configs:
+      - job_name: 'prometheus'
+        static_configs:
+        - targets: ['localhost:9090']
+      - job_name: 'node01'
+        static_configs:
+        - targets: ['192.168.8.122:9100']
