@@ -33,8 +33,12 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: prometheus-yml
-          mountPath: /etc/prometheus/
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
           readOnly: true  
+        - name: rules-yml
+          mountPath: /etc/prometheus/alert-rules.yml
+          subPath: alert-rules.yml
         - name: prome-data
           mountPath: /prometheus
         ports:
@@ -48,6 +52,22 @@ spec:
           mountPath: /usr/share/grafana/conf
         - name: grafana-data
           mountPath: /var/lib/grafana
+      - name: alertmanager
+        image: harbor.wow-trend.us/wow/alertmanager:v0.20
+        ports:
+        - containerPort: 9093
+        volumeMounts:
+        - name: alertmanager-yml
+          mountPath: /etc/alertmanager/
+        - name: alert-data
+          mountPath: /alertmanager
+      - name: flask
+        image: harbor.wow-trend.us/wow/flask:v3.7.1
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: app-py
+          mountPath: /src/
       volumes:
       - name: prometheus-yml
         configMap:
@@ -64,6 +84,19 @@ spec:
         nfs:
           path: /data/k8s-nfs/data/grafana
           server: 192.168.1.6
+      - name: alertmanager-yml
+        configMap:
+          name: alert-config
+      - name: alert-data
+        nfs:
+          path: /data/k8s-nfs/data/alertmanager
+          server: 192.168.1.6
+      - name: rules-yml
+        configMap:
+          name: rules
+      - name: app-py
+        configMap:
+          name: flask
 ---
 apiVersion: extensions/v1beta1
 kind: Ingress
@@ -91,14 +124,129 @@ data:
     alerting:
       alertmanagers:
       - static_configs:
-        - targets:
+        - targets: ['localhost:9093']
 
     rule_files:
+      - 'alert-rules.yml'
 
     scrape_configs:
       - job_name: 'prometheus'
         static_configs:
         - targets: ['localhost:9090']
-      - job_name: 'node01'
+      - job_name: 'node'
         static_configs:
-        - targets: ['192.168.8.122:9100']
+        - targets: ['192.168.1.10:9100', '192.168.1.8:9100', '192.168.1.33:9100', '192.168.1.6:9100', '192.168.8.168:9100', '192.168.8.88:9100', '192.168.8.170:9100', '192.168.8.169:9100', '192.168.1.18:9100', '192.168.1.15:9100', '192.168.1.11:9100', '192.168.1.16:9100', '192.168.1.24:9182']
+      - job_name: 'mysql'
+        static_configs:
+        - targets: ['192.168.1.18:9104']
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alert-config
+data:
+  alertmanager.yml: |
+    global:
+      resolve_timeout: 5m
+    
+    route:
+      group_by: ['node']
+      group_wait: 10s
+      group_interval: 10s
+      repeat_interval: 1h
+      receiver: 'web.hook'
+    receivers:
+      - name: 'web.hook'
+        webhook_configs:
+          - url: 'http://127.0.0.1:5000/ding'
+    inhibit_rules:
+      - source_match:
+          severity: 'critical'
+        target_match:
+          severity: 'warning'
+        equal: ['alertname', 'dev', 'instance']
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rules
+data:
+  alert-rules.yml: |
+    groups:
+    - name: node
+      rules:
+      - alert: InstanceDown  # 实例存活性告警
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "告警：Instance {{ $labels.instance }} down"
+          description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minutes."
+      - alert: MemoryUsage   # 内存使用率告警
+        expr: 100 - node_memory_MemAvailable_bytes * 100 / node_memory_MemTotal_bytes > 90
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          sumaary: "告警：Instance {{ $labels.instance }} memory usage is too high"
+          description: "Lack of available memory on {{ $labels.instance }}, current value is: {{ $value }}%"
+      - alert: CPUUsage   # CPU使用率告警
+        expr: (((count(count(node_cpu_seconds_total) by (cpu))) - avg(sum by (mode)(irate(node_cpu_seconds_total{mode='idle'}[5m])))) * 100) / count(count(node_cpu_seconds_total{mode="idle"}) by (cpu)) > 90
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          sumaary: "告警：Instance {{ $labels.instance }} cpu is busy"
+          description: "CPU load is above 90% on {{ $labels.instance }}, current value is: {{ $value }}%"      
+      - alert: FilesystemUsage   # 硬盘使用率告警
+        expr: (1-(node_filesystem_free_bytes{mountpoint!~"/boot",fstype=~"ext4|xfs"} / node_filesystem_size_bytes{fstype=~"ext4|xfs"}))*100 > 90
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          sumaary: "告警：Instance {{ $labels.instance }} disk space is not enough"
+          description: "Disk space is used over 90% on {{ $labels.instance }}, mountpoint is: {{ $labels.mountpoint }}, current value is: {{ $value }}%" 
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: flask
+data:
+  app.py: |
+    from flask import Flask, request
+    import json, requests
+    
+    app = Flask(__name__)
+    
+    @app.route('/ding', methods=['POST'])
+    def ding():
+        content = request.json['alerts'][0]
+        text = '''
+        'instance': %s
+        'alertname': %s
+        'status': %s
+        'annotations': %s
+        'startsAt': %s
+        'endsAt': %s
+        ''' % (content['labels']['instance'], content['labels']['alertname'], content['status'],content['annotations'], content['startsAt'], content['endsAt'])
+    
+        headers = {'Content-Type': 'application/json;charset=utf-8'}
+        api_url = 'https://oapi.dingtalk.com/robot/send?access_token=a99762123c9373c4d48b244b555329ee9889c2fdb71ab462db8e8023083dc28d'
+        json_text = {
+            'msgtype': 'text',
+            'at': {
+                'isAtAll': True
+            },
+            'text': {
+                'content': text
+            }
+        }
+        res = requests.post(api_url, json.dumps(json_text), headers=headers)
+        if res.status_code == 200:
+            return 'send success!'
+        else:
+            return 'send failed!'
+    
+    if __name__ == '__main__':
+        app.run(host="0.0.0.0", port=5000)
