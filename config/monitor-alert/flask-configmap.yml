@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: monitor
+  name: flask
+data:
+  app.py: |
+    from flask import Flask, request
+    import json, requests
+
+    app = Flask(__name__)
+
+    @app.route('/ding', methods=['POST'])
+    def ding():
+        content = request.json['alerts'][0]
+        text = '''
+        'instance': %s
+        'alertname': %s
+        'status': %s
+        'annotations': %s
+        'startsAt': %s
+        'endsAt': %s
+        ''' % (content['labels']['instance'], content['labels']['alertname'], content['status'],content['annotations'], content['startsAt'], content['endsAt'])
+
+        headers = {'Content-Type': 'application/json;charset=utf-8'}
+        api_url = 'https://oapi.dingtalk.com/robot/send?access_token=a99762123c9373c4d48b244b555329ee9889c2fdb71ab462db8e8023083dc28d'
+        json_text = {
+            'msgtype': 'text',
+            'at': {
+                'isAtAll': True
+            },
+            'text': {
+                'content': text
+            }
+        }
+        res = requests.post(api_url, json.dumps(json_text), headers=headers)
+        if res.status_code == 200:
+            return 'send success!'
+        else:
+            return 'send failed!'
+
+    if __name__ == '__main__':
+        app.run(host="0.0.0.0", port=5000)

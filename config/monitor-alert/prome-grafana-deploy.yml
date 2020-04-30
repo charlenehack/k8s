@@ -1,0 +1,130 @@
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitor
+  name: prome-grafana
+spec:
+  selector:
+    app: prome-grafana
+  ports:
+  - name: prome-grafana
+    port: 3000
+    targetPort: 3000
+    protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitor
+  name: prometheus
+spec:
+  selector:
+    app: prome-grafana
+  type: NodePort
+  ports:
+  - name: prometheus
+    port: 9090
+    targetPort: 9090
+    nodePort: 9090
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: monitor
+  name: prome-grafana
+  labels:
+    app: prome-grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prome-grafana
+  template:
+    metadata:
+      labels:
+        app: prome-grafana
+    spec:
+      containers:
+      - name: prometheus
+        image: harbor.wow-trend.us/wow/prometheus:v2.17
+        imagePullPolicy: IfNotPresent
+        volumeMounts:
+        - name: prometheus-yml
+          mountPath: /etc/prometheus/prometheus.yml
+          subPath: prometheus.yml
+          readOnly: true  
+        - name: rules-yml
+          mountPath: /etc/prometheus/alert-rules.yml
+          subPath: alert-rules.yml
+        - name: prome-data
+          mountPath: /prometheus
+        ports:
+        - containerPort: 9090
+      - name: grafana
+        image: harbor.wow-trend.us/wow/grafana:v6.7.2
+        ports:
+        - containerPort: 3000
+        volumeMounts:
+        - name: grafana-config
+          mountPath: /usr/share/grafana/conf
+        - name: grafana-data
+          mountPath: /var/lib/grafana
+      - name: alertmanager
+        image: harbor.wow-trend.us/wow/alertmanager:v0.20
+        ports:
+        - containerPort: 9093
+        volumeMounts:
+        - name: alertmanager-yml
+          mountPath: /etc/alertmanager/
+        - name: alert-data
+          mountPath: /alertmanager
+      - name: flask
+        image: harbor.wow-trend.us/wow/flask:v3.7.1
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: app-py
+          mountPath: /src/
+      volumes:
+      - name: prometheus-yml
+        configMap:
+          name: prome-config
+      - name: prome-data
+        nfs:
+          path: /data/k8s-nfs/data/prometheus
+          server: 192.168.1.6
+      - name: grafana-config
+        nfs:
+          path: /data/k8s-nfs/config/grafana
+          server: 192.168.1.6
+      - name: grafana-data
+        nfs:
+          path: /data/k8s-nfs/data/grafana
+          server: 192.168.1.6
+      - name: alertmanager-yml
+        configMap:
+          name: alert-config
+      - name: alert-data
+        nfs:
+          path: /data/k8s-nfs/data/alertmanager
+          server: 192.168.1.6
+      - name: rules-yml
+        configMap:
+          name: rules
+      - name: app-py
+        configMap:
+          name: flask
+---
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  namespace: monitor
+  name: prome-grafana
+spec:
+  rules:
+  - host: grafana.wow-trend.us
+    http:
+      paths:
+      - backend:
+          serviceName: prome-grafana
+          servicePort: 3000

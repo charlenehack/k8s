@@ -1,0 +1,91 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: monitor
+  labels:
+    app: kube-state-metrics
+  name: kube-state-metrics
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kube-state-metrics
+  template:
+    metadata:
+      labels:
+        app: kube-state-metrics
+    spec:
+      containers:
+      - image: quay.io/coreos/kube-state-metrics:v1.8.0
+        name: kube-state-metrics
+        resources:
+          limits:
+            cpu: 100m
+            memory: 150Mi
+          requests:
+            cpu: 100m
+            memory: 150Mi
+        volumeMounts:
+        - name: kube-config
+          mountPath: /ca/kube-config
+          subPath: kube-config
+        args:
+          - --port=8080
+          - --telemetry-port=8081
+          - --apiserver=https://192.168.1.168:6443
+          - --kubeconfig=/ca/kube-config  # 可重新生成也可直接使用初始化时生成的
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+      volumes:
+      - name: kube-config
+        configMap:
+          name: kube-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: monitor
+  labels:
+    app: kube-state-metrics
+  name: kube-state-metrics
+spec:
+  type: NodePort
+  ports:
+  - name: https-main
+    port: 8080
+    targetPort: 8080
+    nodePort: 8080
+  - name: https-self
+    port: 8081
+    targetPort: 8081
+    nodePort: 8081
+  selector:
+    app: kube-state-metrics
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: monitor
+  name: kube-config
+data:
+  kube-config: |
+    apiVersion: v1
+    clusters:
+    - cluster:
+        certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN5RENDQWJDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRFNU1USXdPVEF4TWpBeU5Gb1hEVEk1TVRJd05qQXhNakF5TkZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTUtLCnZ5RktjMkJpQkwyRk03NnBpMjA3NTVPVWdvRW1CU3psMmhhQVVZT2xnUDMwN3VwUFYxRzNwK3F1SE9idXk5bEEKS0c5d0hPamdaMERYTG8wRms0R2xMUE9Db01mWnFiMGtpUGZaZkJmWEcvZGNvS2pRQzBmNVM1Z1RKV1JnTFQ1VApUNy9PVkV1SjZhQzlBRW5xM0IxTk0vZHlqR2hlOEdVeVFKQzJIK09JbGtwWnk5Nlg3UDFmdS9tN1NiTTl4N2RDCkUyeDVnR0NFSWx2U0U3cFgvSmlQV3hsSUI1cWNYN0xYZGZBNTMrY0M4ekVsQ1ZjdUtsM1lub3BnejllM0s3UDYKTS9QMVFTazJxMTFDaHJyVmtxVWFiSGxQQjBjVlc1L3Nsb05JRkFndDZBbWN4aDJzL1huVC9QaHdxUDg1Z2hNMgpOQnJrOFAvUGV6cFIzWnQ4UWs4Q0F3RUFBYU1qTUNFd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFERHBZVWxjcTZhUHpNb2V2byt5ek85dnpvYmgKclVORHlQcWkxa09sUUN5cXVqdmdnUE5MRDlqazg3U05Kekc1dFh0NDdWMDVLNnl0QmF4REEzc2R4VEpKVVZsaApwVDMxZlVEeGlkSHpvemFHcXlYYlJubm1YcWs1Zmxtd1ZiSklabHV3WGUvWkQxbHJnenFGaVJhS3c0czFYTXlICmErNUFBQkpvU0hOY0ZnMmxhc1RaQ0d3R0pscGhSekpvMEV4aGVHdWcwWVptTnZZVkJMS2s4WXNvMHErcTBEOWoKWkgxQ3BSK3dWUzN1bDRFUTQzckZtSExhMVlTUkNOYkMwelhOeVd1cUJoeHZQcE9nNENSUVlnNWdqclUzNFg5eAp4c1g4TGcyK2g5eTNNT2lhS1Z5WTUyR1FEVW1HOXJ2ejBYR0J2MlR0Z3Y5VmhhUXZQWkZBZUR3TmdwZz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+        server: https://192.168.1.168:6443
+      name: kubernetes
+    contexts:
+    - context:
+        cluster: kubernetes
+        user: kubernetes-admin
+      name: kubernetes-admin@kubernetes
+    current-context: kubernetes-admin@kubernetes
+    kind: Config
+    preferences: {}
+    users:
+    - name: kubernetes-admin
+      user:
+        client-certificate-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM4akNDQWRxZ0F3SUJBZ0lJWk43QlphZDZDZW93RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB4T1RFeU1Ea3dNVEl3TWpSYUZ3MHlNREV5TURnd01USXdNamRhTURReApGekFWQmdOVkJBb1REbk41YzNSbGJUcHRZWE4wWlhKek1Sa3dGd1lEVlFRREV4QnJkV0psY201bGRHVnpMV0ZrCmJXbHVNSUlCSWpBTkJna3Foa2lHOXcwQkFRRUZBQU9DQVE4QU1JSUJDZ0tDQVFFQTdvajVGdm9vWmxMcS9sWHoKZGVpOGJoTUdnQjlvZUp3Z0pGQ3VxK1luZ2pHWTNPVjNKakFyQ255MUxrZVYrN3J3b0p3MVpjSWxUREVEY0xwKwpmM3lVVUo1SE5DUk9pK2hORm1SZThoeVNmdkhLT0ljVmVyRHUwR1FRaDBMUjNabkNTa21pTHhGNEthQnpON2dOCnpBUnBzRGdGRG5xS2lsdkpaNGtmYjRDbWw0ZWQ4QUlPUWtrREg4QzEzZ2xEaXh5YUROTXljMGxNVkJGRmFPSEUKVTRMV2E2QjhBUXZpUW9iYitOTC9RNEJ4WlRJZzNzMkFCejNzei81bVVrMUxkQnlvYzJ5aTQzT1JPQ2dtTWJOOApBYW9WeVpKOG1lM2NtUEhLclRxMkZBMUFxTVlXcndCaUhLVStiOVlBUHpHRzRNWWVvcS9TZVpvK21ncDNKeG9HCnhqVzNkUUlEQVFBQm95Y3dKVEFPQmdOVkhROEJBZjhFQkFNQ0JhQXdFd1lEVlIwbEJBd3dDZ1lJS3dZQkJRVUgKQXdJd0RRWUpLb1pJaHZjTkFRRUxCUUFEZ2dFQkFLWUorVGJmdTFRNkJMZVBtenZ2UDR1VGw5UytsYTFpMzZBVQpNdTZQcVo5ZWdSbmVKMEx2T3JrRGhWb0kvQ0g2THZJK2JRa0dKQWx2K2FBV0M2bkpJUWNxdHlxZjNkVC9PbXBSClo0dlV2YnYxbncremE1dktXMnFxbWtzUWRmWDVPd1JrdTBLTFpVSWd3YXB0QjZtdnJBRDNTZ0kwRStVeFVCK1kKS29sNGYzU1QyMDFCRkJseUhFQksxdnJRMjNLdzJiWjNXbm5seTBHWGdEOTgwZVVvTXZxTmltdWpZWDdET1ZRLwpxcTU0bDUwMDNUcHU3R0RlWDI3NVQ0Q0JwcGlMVHJmMGs2Zkh2cW5IVjd1Y3pWMGxCRGVpVWtXZVQ5d1VJT1BlCjN2RThlcEI0TXZWQ3lDVXBIS0FTUlRUeERISElRRzdndnI3S1VVZDZCUndqa0R4eE5tbz0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+        client-key-data: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBN29qNUZ2b29abExxL2xYemRlaThiaE1HZ0I5b2VKd2dKRkN1cStZbmdqR1kzT1YzCkpqQXJDbnkxTGtlVis3cndvSncxWmNJbFRERURjTHArZjN5VVVKNUhOQ1JPaStoTkZtUmU4aHlTZnZIS09JY1YKZXJEdTBHUVFoMExSM1puQ1NrbWlMeEY0S2FCek43Z056QVJwc0RnRkRucUtpbHZKWjRrZmI0Q21sNGVkOEFJTwpRa2tESDhDMTNnbERpeHlhRE5NeWMwbE1WQkZGYU9IRVU0TFdhNkI4QVF2aVFvYmIrTkwvUTRCeFpUSWczczJBCkJ6M3N6LzVtVWsxTGRCeW9jMnlpNDNPUk9DZ21NYk44QWFvVnlaSjhtZTNjbVBIS3JUcTJGQTFBcU1ZV3J3QmkKSEtVK2I5WUFQekdHNE1ZZW9xL1NlWm8rbWdwM0p4b0d4alczZFFJREFRQUJBb0lCQUEwaHpWVE9nTnJoUmI2cQp6TFI1RTZhYnRZZm9Nc0F4R0RQbm5UWXBmWk5WVjYwUmxQV3RRVEZhbkQ3b0FnSFIwTjJHdkFuV0htZUxhejBSCmgxVk5ibnpodWRuTkJlWDk3QUNIbGhLT01DSjgvVDBQY3NkR1psOWlvdVpQYjI1YndLNkdUejk0SHIxcjcrdnAKWGhrVlJSeEdlVURLemtXL3Q5N1RWYisxdlhZcURmcFFnazZUaHVqeGdxdEVyUnNadjJLcUlFTFBNakF6VXBhVwpGa0haVGRXYncxMW5XUmhJdThKZ0p3SHMwQXdGZVZGVjJpZ1ZsR0MrektEbGRQaUNnTzMya0lncWk3eWRucDc0CjJocUt0U2hlMEhCSEdqcE1DbjRFcDM2c1dqd3gzWlJtN2xqdEJ0S1Jhdzk4WGdWT0JrbWlBY0VaMXZCSVI0VHkKY3lORXZ3RUNnWUVBK0I1a1RMZkFXMkhkYWx6S05BZ1JWTVdjSW5icjNpOEdIWHNuNkRrdzZzMU9IVE01WEFGWApXZWhIMXFDZHc5Y2xhRWtWc3ZtYjNhNlNJdStQZFhPNTlFMmdrcnplSzk0Y2VsRHByODk2WnM3YWNISy9CajF6CkE0SEVaT2xFTFZEY3hmTVlFeE1LazAzSFZyYTNxTUorUmZGSXNuWWRGZGRmYmFhYVVuK3hmSDBDZ1lFQTloeW0KZ3BseUlPV1hpMDdHSVIvS1ludFVYeHA4M04vNE9mVU9xUVZaVW0rcHQwVm1OdEFaRlcxYllVQnFNM1N1cndVSQpLQVVqS1Z3N0VPTng3Tm5TL2VmMkxKOUZGV0F4ZVFpUFFYUkIzbkVTUGlzd1hNa3JrSWdMeDVDdmQ4Wk95M2JuCmk4aW52ZVM4aGthci91d0sydnpnVzJUZHB6RFg1TTJPZE56eU1Ga0NnWUVBeDBUUlZQUDJudTI0UDZZS0YwT3IKZDZQRlE4Q3lxaHltRXFOSVo2OFc1RnpDc1p6a0lrcEpkMEdnQUhXNmZ3Q1pZR25oN1gyZWVxbXJZRGQ1eGVDTgpwZkY2VnA4czU1cFkwTHVQRXMzVkJpQjNPdnhOQXB2emRRdVJTV0kyaVJaNldOaGxxMXdOa0VSVkpnVlU5MHBNCjA2dDJzUzAvS3Ixd1BNWWpCc0xiTHBrQ2dZQWR5MjRsRldxSnJRSGhyWkd5NU9SZGM4ek5EcW5iRzRvemlnVlMKVlFGeFIyOW1icEpuUkY0bEIrNHVJZHc1aW9DelU0cWZQYS82Qzk1aXR3Wk54RGtVNEFZZmROQ3FPOUVCZEJYVAp1TDFZcnB1a3h4bTl3ZVR5UkdZWXJOMXhSS0s1WXhXNUNIdTJNNERYU0tyOTI1bWMxVXhjQkNRSlg1SmpjcmN5ClVxVkhVUUtCZ1FEY01TN0tFM0hvZ3U2QjZrUmRONTRSUXRGNXZSaTNwSW5OdUVFdWtWaVIxaDlKT0RYQ0pGRmEKZUl2Mmx2SkRhVjVIWUxrSXc5WUh2SGV5SjVjcjRWN2dQdDl3YW9iT29OKy81VU9tTEM4OW04VEtrZnVlVzlnZApQMTB6RzNzbEs4L0FUTUJ3UUEwR2pFdWl6VUdLVUgwa1Z4QXFNVjM2QUNaa0szK3ZrOGlqa3c9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
