@@ -44,7 +44,7 @@ data:
           summary: "告警：Instance {{ $labels.instance }} down"
           description: "{{ $labels.instance }} of job {{ $labels.job }} has been down for more than 1 minutes."
       - alert: MemoryUsage   # 内存使用率告警
-        expr: 100 - node_memory_MemAvailable_bytes * 100 / node_memory_MemTotal_bytes > 90
+        expr: 100 - node_memory_MemAvailable_bytes * 100 / node_memory_MemTotal_bytes > 95
         for: 2m
         labels:
           severity: warning

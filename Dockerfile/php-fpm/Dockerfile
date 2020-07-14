@@ -4,7 +4,7 @@ FROM php:7.3-fpm
 RUN groupadd -r www && useradd -r -M -g www www
 RUN apt-get update -y && apt-get -y install gcc curl make autoconf libc-dev pkg-config libzip-dev
 RUN apt-get -y install --no-install-recommends git libssl-dev libxslt-dev libmcrypt-dev librdkafka-dev libxml2-dev libpng++-dev libjpeg-dev libpng-dev libvpx-dev libfreetype6-dev \
-        libmagick++-dev libmagickwand-dev zlib1g-dev libgd-dev libmagic-dev libpcre3-dev libreadline-dev libedit-dev libsqlite3-dev libmemcached-dev
+        libmagick++-dev libmagickwand-dev zlib1g-dev libgd-dev libmagic-dev libpcre3-dev libreadline-dev libedit-dev libsqlite3-dev libmemcached-dev ffmpeg
 RUN docker-php-ext-install zip bcmath bz2 ctype gettext json mbstring mysqli opcache pcntl pdo pdo_mysql pdo_sqlite phar posix readline session shmop soap sockets sysvmsg sysvsem && \
 	export CFLAGS="-I/usr/src/php" && docker-php-ext-install xmlreader xmlwriter xml xmlrpc xsl && \
 	pecl install imagick redis memcached mongodb swoole rdkafka && \
